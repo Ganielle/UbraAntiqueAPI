@@ -4,6 +4,7 @@ const routers = app => {
     app.use("/auth", require("./auth"))
     app.use("/users", require("./users"))
     app.use("/uploads", require('./upload'))
+    app.use("/jobs", require("./jobs"))
 }
 
 module.exports = routers

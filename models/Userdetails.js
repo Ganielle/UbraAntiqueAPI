@@ -14,6 +14,22 @@ const userDetailsSchema = new mongoose.Schema(
         },
         lastname: {
             type: String
+        },
+        aboutme: {
+            type: String,
+            default: ""
+        },
+        status: {
+            type: String,
+            default: "Open for Work"
+        },
+        experience: {
+            type: String,
+            default: "No Experience Yet!"
+        },
+        education: {
+            type: String,
+            default: "No education Yet!"
         }
     },
     {
