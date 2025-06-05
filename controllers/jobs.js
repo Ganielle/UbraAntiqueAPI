@@ -94,3 +94,79 @@ exports.showjobs = async (req, res) => {
         totalpage: Math.ceil(totalpage / pageOptions.limit)
     }})
 }
+
+exports.getjobdetails = async (req, res) => {
+    const {id, username} = req.user
+
+    const {jobid} = req.query
+
+    const job = await Jobs.aggregate([
+        {
+            $match: {
+            _id: new mongoose.Types.ObjectId(jobid)
+            }
+        },
+        {
+            $project: {
+            title: 1,
+            description: 1,
+            salary: 1,
+            status: 1,
+            owner: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            applicantCount: { $size: "$applicants" },
+
+            // Check if employeeId is in applicants.applicants.employee
+            isApplied: {
+                $gt: [
+                {
+                    $size: {
+                    $filter: {
+                        input: "$applicants",
+                        as: "applicant",
+                        cond: {
+                        $eq: ["$$applicant.employee", new mongoose.Types.ObjectId(id)]
+                        }
+                    }
+                    }
+                },
+                0
+                ]
+            }
+            }
+        },
+        {
+            $lookup: {
+            from: "userdetails",
+            localField: "owner",
+            foreignField: "owner",
+            as: "ownerDetails"
+            }
+        },
+        {
+            $unwind: { path: "$ownerDetails", preserveNullAndEmptyArrays: true }
+        }
+    ]);
+
+    return res.json({message: "success", data: {
+        job: job[0]
+    } })
+}
+
+exports.applyjob = async (req, res) => {
+    const {id, username} = req.user
+
+    const {jobid} = req.body
+
+    await Jobs.findOneAndUpdate({_id: new mongoose.Types.ObjectId(jobid)}, {
+        $push: {
+            "applicants": {
+                employee: new mongoose.Types.ObjectId(id),
+                status: "Pending"
+            }
+        }
+    })
+
+    return res.json({message: "success"})
+}

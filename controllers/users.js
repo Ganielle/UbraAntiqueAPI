@@ -32,7 +32,7 @@ exports.createusers = async (req, res) => {
     })
 
     if (userdeets){
-        return res.status(400).json({message: "failed", data: "There's an existing student!."})
+        return res.status(400).json({message: "failed", data: `There's an existing ${profiletype}!.`})
     }
 
     const userlogindeets = await Users.create({username: userusername, password: password, auth: profiletype})
