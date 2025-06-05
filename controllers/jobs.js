@@ -170,3 +170,78 @@ exports.applyjob = async (req, res) => {
 
     return res.json({message: "success"})
 }
+
+exports.mypostedjobs = async (req, res) => {
+    const {id, username} = req.user
+
+
+    const {limit, page, search} = req.query
+
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10,
+    };
+
+    const matchStage = {
+        owner: new mongoose.Types.ObjectId(id)
+    };
+
+    if (search){
+        matchStage["$or"] = [
+            { title: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: "i" } },
+        ]
+    }
+
+    const jobsWithApplicantCount = await Jobs.aggregate([
+        {
+            $match: matchStage  // your filter here
+        },
+        {
+            $project: {
+            title: 1,
+            description: 1,
+            salary: 1,
+            status: 1,
+            owner: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            applicantCount: { $size: "$applicants" }
+            }
+        },
+        {
+            $lookup: {
+            from: "userdetails",         // the collection name (usually lowercase plural)
+            localField: "owner",          // field from Jobs collection
+            foreignField: "owner",        // field from Userdetails collection
+            as: "ownerDetails"            // output array field
+            }
+        },
+        {
+            $unwind: { path: "$ownerDetails", preserveNullAndEmptyArrays: true }
+        },
+        {
+            $sort: { createdAt: -1 }
+        },
+        {
+            $skip: pageOptions.page * pageOptions.limit
+        },
+        {
+            $limit: pageOptions.limit
+        }
+    ]);
+
+    const totalpage = await Jobs.countDocuments(matchStage)
+
+    if (jobsWithApplicantCount.length <= 0){
+        return res.json({message: "success", data:{
+            jobs: [],
+            totalpage: Math.ceil(totalpage / pageOptions.limit)
+        }})
+    }
+
+    return res.json({message: "success", data: {
+        jobs: jobsWithApplicantCount,
+        totalpage: Math.ceil(totalpage / pageOptions.limit)
+    }})
+}
