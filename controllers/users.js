@@ -35,7 +35,7 @@ exports.createusers = async (req, res) => {
         return res.status(400).json({message: "failed", data: `There's an existing ${profiletype}!.`})
     }
 
-    const userlogindeets = await Users.create({username: userusername, password: password, auth: profiletype})
+    const userlogindeets = await Users.create({username: userusername, password: password, auth: profiletype, authenticated: false})
     .then(data => data)
     .catch(err => {
         console.log(`There's a problem creating user loggin. Error ${err}`)

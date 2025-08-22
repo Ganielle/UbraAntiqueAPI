@@ -1,17 +1,17 @@
 const router = require("express").Router()
 const {createusers, editaboutme, getuserdata, editexperience, editeducation, editstatus, editfeatureddocuments, deletefeatureddocuments} = require("../controllers/users")
-const {protectemployee, protectadmin} = require("../middleware/middleware")
+const {protectemployeewithauth, protectadmin} = require("../middleware/middleware")
 const upload = require("../middleware/uploadfile")
 const uploadfile = upload.single("file")
 
 router
-    .get("/getuserdata", protectemployee, getuserdata)
-    .post("/editaboutme", protectemployee, editaboutme)
-    .post("/editexperience", protectemployee, editexperience)
-    .post("/editeducation", protectemployee, editeducation)
-    .post("/editstatus", protectemployee, editstatus)
+    .get("/getuserdata", protectemployeewithauth, getuserdata)
+    .post("/editaboutme", protectemployeewithauth, editaboutme)
+    .post("/editexperience", protectemployeewithauth, editexperience)
+    .post("/editeducation", protectemployeewithauth, editeducation)
+    .post("/editstatus", protectemployeewithauth, editstatus)
     .post("/createusers", createusers)
-    .post("/editfeatureddocuments", protectemployee, function (req, res, next){
+    .post("/editfeatureddocuments", protectemployeewithauth, function (req, res, next){
         uploadfile(req, res, function(err) {
             if (err){
                 return res.status(400).send({ message: "failed", data: err.message })
@@ -20,6 +20,6 @@ router
             next()
         })
     }, editfeatureddocuments)
-    .post("/deletefeatureddocuments", protectemployee, deletefeatureddocuments)
+    .post("/deletefeatureddocuments", protectemployeewithauth, deletefeatureddocuments)
 
 module.exports = router;

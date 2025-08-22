@@ -14,6 +14,9 @@ const usersSchema = new mongoose.Schema(
         },
         token: {
             type: String
+        },
+        authenticated: {
+            type: Boolean
         }
     },
     {

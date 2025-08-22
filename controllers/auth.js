@@ -1,6 +1,9 @@
 const Users = require("../models/Users")
 const Staffusers = require("../models/Staffusers")
+const Userdetails = require("../models/Userdetails")
+const Verificationcode = require("../models/Verificationcode")
 const fs = require('fs')
+const crypto = require('crypto')
 
 const bcrypt = require('bcrypt');
 const jsonwebtokenPromisified = require('jsonwebtoken-promisified');
@@ -13,6 +16,12 @@ const encrypt = async password => {
     return await bcrypt.hash(password, salt);
 }
 
+function generateNumericOTP(length = 6) {
+  // ensures leading zeros are possible (e.g., 003219)
+  const max = 10 ** length;
+  const n = crypto.randomInt(0, max);
+  return n.toString().padStart(length, "0");
+}
 
 exports.login = async (req, res) => {
     const {username, password} = req.query
@@ -95,14 +104,112 @@ exports.login = async (req, res) => {
     
     res.cookie('sessionToken', jwtoken, { secure: true, sameSite: 'None' } )
 
-    console.log(userdata)
+    if (userdata.authenticated == false){
+
+        const generatedOTP = generateNumericOTP()
+
+        await Verificationcode.create({owner: new mongoose.Types.ObjectId(userdata._id), code: generatedOTP})
+
+        const userdetails = await Userdetails.findOne({owner: new mongoose.Types.ObjectId(userdata._id)})
+
+        const payload = {
+            service_id: process.env.EMAIL_JS_SERVICE_ID,
+            template_id: process.env.EMAIL_JS_TEMPLATE_ID,
+            user_id: process.env.EMAIL_JS_PUBLIC_KEY,
+            accessToken: process.env.EMAIL_JS_PRIVATE_KEY,
+            template_params: {
+                passcode: `${generatedOTP}`,
+                email: userdetails.email
+            }
+        };
+
+        const emailresponse = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+            method: 'POST',
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+        })
+
+        const result = await emailresponse.text();
+
+        console.log(result)
+
+        if (result !== 'OK'){
+            return res.status(400).json({message: "failed", data: "Failed to send verification code. Please contact customer support"})
+        }
+    }
 
     return res.json({message: "success", data: {
-        auth: userdata.auth
+        auth: userdata.auth,
+        authenticated: userdata.authenticated
     }})
 }
 
 exports.logout = async (req, res) => {
     res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
     return res.json({message: "success"})
+}
+
+exports.regenerateotp = async (req, res) => {
+    const {id} = req.user
+
+    const generatedOTP = generateNumericOTP()
+
+    await Verificationcode.create({owner: new mongoose.Types.ObjectId(id), code: generatedOTP})
+
+    const userdetails = await Userdetails.findOne({owner: new mongoose.Types.ObjectId(id)})
+
+    const payload = {
+        service_id: process.env.EMAIL_JS_SERVICE_ID,
+        template_id: process.env.EMAIL_JS_TEMPLATE_ID,
+        user_id: process.env.EMAIL_JS_PUBLIC_KEY,
+        accessToken: process.env.EMAIL_JS_PRIVATE_KEY,
+        template_params: {
+            passcode: `${generatedOTP}`,
+            email: userdetails.email
+        }
+    };
+
+    const emailresponse = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+        method: 'POST',
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+    })
+
+    const result = await emailresponse.text();
+
+    console.log(result)
+
+    if (result !== 'OK'){
+        return res.status(400).json({message: "failed", data: "Failed to send verification code. Please contact customer support"})
+    }
+
+    return res.json({message: "success"})
+}
+
+exports.validateotp = async (req, res) => {
+    const {id} = req.user
+
+    const {verificationcode} = req.body
+
+    const code = await Verificationcode.find({owner: new mongoose.Types.ObjectId(id)})
+    .sort({createdAt: -1})
+    .limit(1)
+
+    if (code.length <= 0){
+        return res.status(401).json({message: "failed"})
+    }
+
+    if (code[0].code != verificationcode){
+        return res.status(400).json({message: "failed", data: "The code is not valid! Please enter a valid code sent to your email."})
+    }
+
+    const user = await Users.findOneAndUpdate({_id: new mongoose.Types.ObjectId(id)}, {authenticated: true})
+
+    return res.json({message: "success", data: {
+        auth: user.auth
+    }})
 }
