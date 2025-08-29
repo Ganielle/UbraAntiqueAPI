@@ -74,7 +74,8 @@ exports.login = async (req, res) => {
         res.cookie('sessionToken', jwtoken, { secure: true, sameSite: 'None' } )
 
         return res.json({message: "success", data: {
-            auth: admindata.auth
+            auth: admindata.auth,
+            authenticated: true
         }})
     }
 
@@ -194,6 +195,9 @@ exports.validateotp = async (req, res) => {
     const {id} = req.user
 
     const {verificationcode} = req.body
+
+    console.log(id)
+    console.log("waaat")
 
     const code = await Verificationcode.find({owner: new mongoose.Types.ObjectId(id)})
     .sort({createdAt: -1})
