@@ -60,7 +60,7 @@ exports.login = async (req, res) => {
             return res.status(400).json({message: "bad-request", data: "There's a problem logging in your account. Please contact customer support for more details!"})
         })
 
-        const payload = { id: admindata._id, username: admindata.username, token: token, auth: "admin" }
+        const payload = { id: admindata._id, username: admindata.username, token: token, auth: admindata.auth }
 
         let jwtoken = ""
 

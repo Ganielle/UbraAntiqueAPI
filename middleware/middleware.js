@@ -124,23 +124,20 @@ exports.protectemployer = async (req, res, next) => {
     }
 }
 
-exports.protectadmin = async (req, res, next) => {
-    const token = req.headers.authorization
+exports.protectsuperadmin = async (req, res, next) => {
+    const token = req.headers.cookie?.split('; ').find(row => row.startsWith('sessionToken='))?.split('=')[1]
 
     if (!token){
-        return res.status(401).json({ message: 'Unauthorized', data: "You don't have enough access to view this page." });
+        res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
+        return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
     }
 
     try{
-        if (!token.startsWith("Bearer")){
-            return res.status(401).json({ message: 'Unauthorized', data: "You don't have enough access to view this page." });
-        }
-        const headerpart = token.split(' ')[1]
+        const decodedToken = await verifyJWT(token);
 
-        const decodedToken = await verifyJWT(headerpart);
-
-        if (decodedToken.auth != "admin"){
-            return res.status(401).json({ message: 'Unauthorized', data: "You don't have enough access to view this page." });
+        if (decodedToken.auth != "superadmin"){
+            res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
+            return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
         }
 
         const user = await Staffusers.findOne({username: decodedToken.username})
