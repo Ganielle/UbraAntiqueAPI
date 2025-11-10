@@ -320,6 +320,99 @@ exports.showjobspendingsa = async (req, res) => {
         jobs: jobsWithApplicantCount,
         totalpage: Math.ceil(totalpage / pageOptions.limit)
     }})
+} 
+
+exports.showjobsdeniedsa = async (req, res) => {
+    const {id, username} = req.user
+
+    const {limit, page, search} = req.query
+
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10,
+    };
+
+    const matchStage = {
+        status: "Deny"
+    };
+
+    if (search){
+        matchStage["$or"] = [
+            { title: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: "i" } },
+        ]
+    }
+
+    const jobsWithApplicantCount = await Jobs.aggregate([
+        {
+            $match: matchStage  // your filter here
+        },
+        {
+            $project: {
+            title: 1,
+            description: 1,
+            salary: 1,
+            status: 1,
+            owner: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            applicantCount: { $size: "$applicants" }
+            }
+        },
+        {
+            $lookup: {
+            from: "userdetails",         // the collection name (usually lowercase plural)
+            localField: "owner",          // field from Jobs collection
+            foreignField: "owner",        // field from Userdetails collection
+            as: "ownerDetails"            // output array field
+            }
+        },
+        {
+            $unwind: { path: "$ownerDetails", preserveNullAndEmptyArrays: true }
+        },
+        {
+            $sort: { createdAt: -1 }
+        },
+        {
+            $skip: pageOptions.page * pageOptions.limit
+        },
+        {
+            $limit: pageOptions.limit
+        }
+    ]);
+
+    const totalpage = await Jobs.countDocuments(matchStage)
+
+    if (jobsWithApplicantCount.length <= 0){
+        return res.json({message: "success", data:{
+            jobs: [],
+            totalpage: Math.ceil(totalpage / pageOptions.limit)
+        }})
+    }
+
+    return res.json({message: "success", data: {
+        jobs: jobsWithApplicantCount,
+        totalpage: Math.ceil(totalpage / pageOptions.limit)
+    }})
+} 
+
+exports.updatestatusjob = async (req, res) => {
+    const {id} = req.user
+
+    const {jobid, status} = req.body
+
+    if (!jobid){
+        return res.status(400).json({message: "success", data: "Please select a valid job first!"})
+    }
+
+    await Jobs.findOneAndUpdate({_id: new mongoose.Types.ObjectId(jobid)}, {status: status})
+    .catch(err => {
+        console.log(`problem approving jobs. Error ${err}`)
+        
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details!"})
+    })
+
+    return res.json({message: "success", data: "You have successfully $"})
 }
 
 //#endregion

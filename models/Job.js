@@ -29,7 +29,7 @@ const JobSchema = new mongoose.Schema(
         ],
         status: {
             type: String,
-            default: "Open"
+            default: "Pending"
         }
     },
     {

@@ -170,8 +170,9 @@ exports.protectall = async (req, res, next) => {
     try{
         const decodedToken = await verifyJWT(token);
 
-        if (decodedToken.auth != "employee" && decodedToken.auth != "employer" && decodedToken.auth != "admin"){
+        if (decodedToken.auth != "employee" && decodedToken.auth != "employer" && decodedToken.auth != "superadmin"){
             res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
+            console.log("wat")
             return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
         }
 
@@ -179,15 +180,29 @@ exports.protectall = async (req, res, next) => {
         .then(data => data)
 
         if (!user){
-            return res.status(401).json({ message: 'Unauthorized', data: "You don't have enough access to view this page." });
-        }
+            console.log("waaat")
+            const staffuser = await Staffusers.findOne({username: decodedToken.username})
+            .then(data => data)
 
-        if (decodedToken.token != user.token){
-            return res.status(401).json({ message: 'duallogin', data: `Your account had been opened on another device! You will now be logged out.` });
-        }
+            if (!staffuser){
+                return res.status(401).json({ message: 'Unauthorized', data: "You don't have enough access to view this page." });
+            }
 
-        req.user = decodedToken;
-        next();
+            if (decodedToken.token != staffuser.token){
+                return res.status(401).json({ message: 'duallogin', data: `Your account had been opened on another device! You will now be logged out.` });
+            }
+
+            req.user = decodedToken;
+            next();
+        }
+        else{
+            if (decodedToken.token != user.token){
+                return res.status(401).json({ message: 'duallogin', data: `Your account had been opened on another device! You will now be logged out.` });
+            }
+
+            req.user = decodedToken;
+            next();
+        }
     }
     catch(ex){
         return res.status(401).json({ message: 'Unauthorized', data: "You don't have enough access to view this page." });
