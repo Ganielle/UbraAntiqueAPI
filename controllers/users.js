@@ -56,7 +56,7 @@ exports.createusers = async (req, res) => {
 }
 
 exports.getuserdata = async (req, res) => {
-    const {id, username} = req.user
+    const {id} = req.query
 
     const data = await Userdetails.findOne({owner: new mongoose.Types.ObjectId(id)})
     .then(data => data)
@@ -214,3 +214,74 @@ exports.deletefeatureddocuments = async (req, res) => {
 
     return res.json({message: "success"})
 }
+
+//  #region SUPERADMIN
+
+exports.getuserlist = async(req, res) => {
+    const {limit, page, search} = req.query
+
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10,
+    };
+
+    const matchStage = {
+        auth: "employee"
+    }
+
+    if (search){
+        matchStage["$or"] = [
+            { username: { $regex: search, $options: 'i' } }
+        ]
+    }
+
+    const users = await Users.aggregate([
+        {
+            $match: matchStage  // your filter here
+        },
+        {
+            $project: {
+                _id: 1,
+                username: 1,
+                authenticated: 1,
+                createdAt: 1
+            }
+        },
+        {
+            $lookup: {
+                from: "userdetails",         // the collection name (usually lowercase plural)
+                localField: "_id",          // field from Jobs collection
+                foreignField: "owner",        // field from Userdetails collection
+                as: "ownerDetails"            // output array field
+            }
+        },
+        {
+            $unwind: { path: "$ownerDetails", preserveNullAndEmptyArrays: true }
+        },
+        {
+            $sort: { createdAt: -1 }
+        },
+        {
+            $skip: pageOptions.page * pageOptions.limit
+        },
+        {
+            $limit: pageOptions.limit
+        }
+    ]);
+
+    const totalpage = await Users.countDocuments(matchStage)
+
+    if (users.length <= 0){
+        return res.json({message: "success", data:{
+            userlist: [],
+            totalpage: Math.ceil(totalpage / pageOptions.limit)
+        }})
+    }
+
+    return res.json({message: "success", data: {
+        userlist: users,
+        totalpage: Math.ceil(totalpage / pageOptions.limit)
+    }})
+}
+
+//  #endregion
