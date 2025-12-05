@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const {createjobs, showjobs, getjobdetails, applyjob, mypostedjobs, showjobspendingsa, updatestatusjob, showjobsdeniedsa} = require("../controllers/jobs")
+const {createjobs, showjobs, getjobdetails, applyjob, mypostedjobs, showjobspendingsa, updatestatusjob, showjobsdeniedsa, viewmyjobs} = require("../controllers/jobs")
 const {protectemployeewithauth, protectemployer, protectsuperadmin, protectall} = require("../middleware/middleware")
 
 router
@@ -12,5 +12,6 @@ router
     .get("/showjobssa", protectsuperadmin, showjobs)
     .get("/showapprovelistsa", protectsuperadmin, showjobspendingsa)
     .get("/showjobsdeniedsa", protectsuperadmin, showjobsdeniedsa)
+    .get("/viewmyjobs", protectemployeewithauth, viewmyjobs)
 
 module.exports = router;

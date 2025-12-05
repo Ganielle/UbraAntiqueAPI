@@ -246,6 +246,42 @@ exports.mypostedjobs = async (req, res) => {
     }})
 }
 
+exports.viewmyjobs = async (req, res) => {
+    const { username } = req.user;
+    const { limit, page } = req.query;
+
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10,
+    };
+
+    try {
+        const jobs = await Jobs.find({
+            applicants: {
+                $elemMatch: {
+                    status: { $in: ["Pending", "Approved"] }
+                }
+            }
+        })
+        .populate({
+            path: "applicants.employee",
+            match: { username: username }, // filter by username
+        })
+        .skip(pageOptions.page * pageOptions.limit)
+        .limit(pageOptions.limit);
+
+        // remove jobs where the populated employee is null
+        const filtered = jobs.filter(job =>
+            job.applicants.some(a => a.employee !== null)
+        );
+
+        return res.status(200).json({ jobs: filtered });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
 //#region SUPERADMIN
 
 exports.showjobspendingsa = async (req, res) => {

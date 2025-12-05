@@ -1,3 +1,4 @@
+const { default: mongoose } = require("mongoose");
 const Staffusers = require("../models/Staffusers")
 
 exports.getadminlist = async (req, res) => {
@@ -52,6 +53,8 @@ exports.getadminlist = async (req, res) => {
         }
     ]);
 
+    console.log(users)
+
     const totalpage = await Staffusers.countDocuments(matchStage)
 
     if (users.length <= 0){
@@ -65,4 +68,63 @@ exports.getadminlist = async (req, res) => {
         adminlist: users,
         totalpage: Math.ceil(totalpage / pageOptions.limit)
     }})
+}
+
+exports.createstaffuser = async (req, res) => {
+    const {username, password, auth} = req.body
+
+    if (!username || !password || !auth){
+        return res.status(400).json({message: "failed", data: "Please complete the form first and try again"})
+    }
+
+    const userlogin = await Staffusers.findOne({ username: { $regex: new RegExp('^' + username + '$', 'i') } })
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem getting existing users. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem creating user loggin! Please try again later."})
+    })
+
+    if (userlogin){
+        return res.status(400).json({message: "failed", data: "There's an existing username! Please use other username."})
+    }
+
+    await Staffusers.create({username: username, password: password, auth: auth})
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem creating user loggin. Error ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem creating user loggin! Please try again later."})
+    })
+
+    return res.json({message: "success", data: "Admin created successfully"})
+}
+
+exports.editstaffuser = async (req, res) => {
+    const {id, username, password} = req.body
+
+    if (!username || !password || !id){
+        return res.status(400).json({message: "failed", data: "Please complete the form first and try again"})
+    }
+    
+    const userlogin = await Staffusers.findOne({ username: { $regex: new RegExp('^' + username + '$', 'i') } })
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem getting existing users. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem creating user loggin! Please try again later."})
+    })
+
+    if (userlogin){
+        return res.status(400).json({message: "failed", data: "There's an existing username! Please use other username."})
+    }
+
+    await Staffusers.findOneAndUpdate({_id: new mongoose.Types.ObjectId(id)}, {username: username, password: password})
+    .catch(err => {
+        console.log(`There's a problem updating admin users. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem editing admin login! Please try again later."})
+    })
+
+    return res.json({message: "success", data: `Successfully updated ${username}'s login details`})
 }
