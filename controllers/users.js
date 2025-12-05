@@ -56,8 +56,8 @@ exports.createusers = async (req, res) => {
 }
 
 exports.getuserdata = async (req, res) => {
-    const {id} = req.query
-
+    const {id} = req.user
+    
     const data = await Userdetails.findOne({owner: new mongoose.Types.ObjectId(id)})
     .then(data => data)
     .catch(err => {

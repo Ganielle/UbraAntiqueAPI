@@ -250,37 +250,97 @@ exports.viewmyjobs = async (req, res) => {
     const { username } = req.user;
     const { limit, page } = req.query;
 
-    const pageOptions = {
-        page: parseInt(page) || 0,
-        limit: parseInt(limit) || 10,
-    };
+    const pageNum = parseInt(page) || 0;
+    const limitNum = parseInt(limit) || 10;
 
     try {
-        const jobs = await Jobs.find({
-            applicants: {
-                $elemMatch: {
-                    status: { $in: ["Pending", "Approved"] }
+        const jobs = await Jobs.aggregate([
+            { $unwind: "$applicants" },
+
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "applicants.employee",
+                    foreignField: "_id",
+                    as: "employeeData"
                 }
+            },
+            { $unwind: "$employeeData" },
+
+            {
+                $match: {
+                    "employeeData.username": username,
+                    "applicants.status": { $in: ["Pending", "Approved"] }
+                }
+            },
+
+            {
+                $lookup: {
+                    from: "userdetails",
+                    localField: "employeeData._id",
+                    foreignField: "owner",
+                    as: "userDetails"
+                }
+            },
+            { $unwind: { path: "$userDetails", preserveNullAndEmptyArrays: true } },
+
+            {
+                $addFields: {
+                    applicants: {
+                        employee: "$employeeData",
+                        details: "$userDetails",
+                        status: "$applicants.status"
+                    }
+                }
+            },
+
+            { $skip: pageNum * limitNum },
+            { $limit: limitNum }
+        ]);
+
+        // COUNT with the SAME FILTERS (username + status)
+        const totalCount = await Jobs.aggregate([
+            { $unwind: "$applicants" },
+
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "applicants.employee",
+                    foreignField: "_id",
+                    as: "employeeData"
+                }
+            },
+            { $unwind: "$employeeData" },
+
+            {
+                $match: {
+                    "employeeData.username": username,
+                    "applicants.status": { $in: ["Pending", "Approved"] }
+                }
+            },
+
+            { $count: "count" }
+        ]);
+
+        const total = totalCount.length > 0 ? totalCount[0].count : 0;
+
+        return res.json({
+            message: "success",
+            data: {
+                jobs,
+                totalpage: Math.ceil(total / limitNum)
             }
-        })
-        .populate({
-            path: "applicants.employee",
-            match: { username: username }, // filter by username
-        })
-        .skip(pageOptions.page * pageOptions.limit)
-        .limit(pageOptions.limit);
+        });
 
-        // remove jobs where the populated employee is null
-        const filtered = jobs.filter(job =>
-            job.applicants.some(a => a.employee !== null)
-        );
-
-        return res.status(200).json({ jobs: filtered });
     } catch (error) {
         console.log(error);
-        return res.status(500).json({ message: "Server error" });
+        return res.status(500).json({
+            message: "bad-request",
+            data: `There's a problem with the server. Error: ${error}`
+        });
     }
 };
+
 
 //#region SUPERADMIN
 
