@@ -17,6 +17,10 @@ const usersSchema = new mongoose.Schema(
         },
         authenticated: {
             type: Boolean
+        },
+        status:{
+            type: String,
+            default: "Active"
         }
     },
     {

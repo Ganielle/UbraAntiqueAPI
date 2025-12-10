@@ -14,6 +14,10 @@ const staffUsersSchema = new mongoose.Schema(
         },
         token: {
             type: String
+        },
+        status: {
+            type: String,
+            default: "Active"
         }
     },
     {

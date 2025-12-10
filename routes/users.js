@@ -1,11 +1,12 @@
 const router = require("express").Router()
-const {createusers, editaboutme, getuserdata, editexperience, editeducation, editstatus, editfeatureddocuments, deletefeatureddocuments, getuserlist} = require("../controllers/users")
-const {protectemployeewithauth, protectsuperadmin} = require("../middleware/middleware")
+const {createusers, editaboutme, getuserdata, editexperience, editeducation, editstatus, editfeatureddocuments, deletefeatureddocuments, getuserlist, editstatususer} = require("../controllers/users")
+const {protectemployeewithauth, protectsuperadmin, protectemployer} = require("../middleware/middleware")
 const upload = require("../middleware/uploadfile")
 const uploadfile = upload.single("file")
 
 router
     .get("/getuserdata", protectemployeewithauth, getuserdata)
+    .get("/getemployeedata", protectemployer, getuserdata)
     .get("/getuserdatasa", protectsuperadmin, getuserdata)
     .get("/getuserlist", protectsuperadmin, getuserlist)
     .post("/editaboutme", protectemployeewithauth, editaboutme)
@@ -13,6 +14,7 @@ router
     .post("/editeducation", protectemployeewithauth, editeducation)
     .post("/editstatus", protectemployeewithauth, editstatus)
     .post("/createusers", createusers)
+    .post("/editstatususer", protectsuperadmin, editstatususer)
     .post("/editfeatureddocuments", protectemployeewithauth, function (req, res, next){
         uploadfile(req, res, function(err) {
             if (err){

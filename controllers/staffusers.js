@@ -2,7 +2,7 @@ const { default: mongoose } = require("mongoose");
 const Staffusers = require("../models/Staffusers")
 
 exports.getadminlist = async (req, res) => {
-    const {limit, page, search} = req.query
+    const {limit, page, search, status} = req.query
 
     const pageOptions = {
         page: parseInt(page) || 0,
@@ -10,7 +10,8 @@ exports.getadminlist = async (req, res) => {
     };
 
     const matchStage = {
-        auth: "admin"
+        auth: "admin",
+        status: status
     }
 
     if (search){
@@ -89,7 +90,7 @@ exports.createstaffuser = async (req, res) => {
         return res.status(400).json({message: "failed", data: "There's an existing username! Please use other username."})
     }
 
-    await Staffusers.create({username: username, password: password, auth: auth})
+    await Staffusers.create({username: username, password: password, auth: auth, status: "Active"})
     .then(data => data)
     .catch(err => {
         console.log(`There's a problem creating user loggin. Error ${err}`)
@@ -127,4 +128,29 @@ exports.editstaffuser = async (req, res) => {
     })
 
     return res.json({message: "success", data: `Successfully updated ${username}'s login details`})
+}
+
+exports.editstatusstaffuser = async (req, res) => {
+    const {id, status} = req.body
+
+    const user = await Staffusers.findOne({_id: new mongoose.Types.ObjectId(id)})
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem getting user. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please try again later"})
+    })
+
+    if (!user){
+        return res.status(400).json({message: "failed", data: "Please select a valid user fist!"})
+    }
+
+    await Staffusers.findOneAndUpdate({_id: new mongoose.Types.ObjectId(id)}, {status: status})
+    .catch(err => {
+        console.log(`There's a problem updating user status. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please try again later"})
+    })
+
+    return res.json({message: "success"})
 }

@@ -35,7 +35,7 @@ exports.createusers = async (req, res) => {
         return res.status(400).json({message: "failed", data: `There's an existing ${profiletype}!.`})
     }
 
-    const userlogindeets = await Users.create({username: userusername, password: password, auth: profiletype, authenticated: false})
+    const userlogindeets = await Users.create({username: userusername, password: password, auth: profiletype, authenticated: false, status: "Active"})
     .then(data => data)
     .catch(err => {
         console.log(`There's a problem creating user loggin. Error ${err}`)
@@ -57,8 +57,21 @@ exports.createusers = async (req, res) => {
 
 exports.getuserdata = async (req, res) => {
     const {id} = req.user
+
+    const {employeeid} = req.query
+
+    var finalid = ""
+
+    if (employeeid){
+        finalid = employeeid
+    }
+    else{
+        finalid = id
+    }
+
+    console.log(finalid)
     
-    const data = await Userdetails.findOne({owner: new mongoose.Types.ObjectId(id)})
+    const data = await Userdetails.findOne({owner: new mongoose.Types.ObjectId(finalid)})
     .then(data => data)
     .catch(err => {
         console.log(`There's a problem getting user data. Error: ${err}`)
@@ -78,7 +91,7 @@ exports.getuserdata = async (req, res) => {
     }
 
 
-    const filedata = await Featureddocuments.find({owner: new mongoose.Types.ObjectId(id)})
+    const filedata = await Featureddocuments.find({owner: new mongoose.Types.ObjectId(finalid)})
     .then(data => data)
     .catch(err => {
         console.log(`There's a problem getting user data. Error: ${err}`)
@@ -218,7 +231,7 @@ exports.deletefeatureddocuments = async (req, res) => {
 //  #region SUPERADMIN
 
 exports.getuserlist = async(req, res) => {
-    const {limit, page, search} = req.query
+    const {limit, page, search, status} = req.query
 
     const pageOptions = {
         page: parseInt(page) || 0,
@@ -226,7 +239,8 @@ exports.getuserlist = async(req, res) => {
     };
 
     const matchStage = {
-        auth: "employee"
+        auth: "employee",
+        status: status
     }
 
     if (search){
@@ -282,6 +296,31 @@ exports.getuserlist = async(req, res) => {
         userlist: users,
         totalpage: Math.ceil(totalpage / pageOptions.limit)
     }})
+}
+
+exports.editstatususer = async (req, res) => {
+    const {id, status} = req.body
+
+    const user = await Users.findOne({_id: new mongoose.Types.ObjectId(id)})
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem getting user. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please try again later"})
+    })
+
+    if (!user){
+        return res.status(400).json({message: "failed", data: "Please select a valid user fist!"})
+    }
+
+    await Users.findOneAndUpdate({_id: new mongoose.Types.ObjectId(id)}, {status: status})
+    .catch(err => {
+        console.log(`There's a problem updating user status. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please try again later"})
+    })
+
+    return res.json({message: "success"})
 }
 
 //  #endregion

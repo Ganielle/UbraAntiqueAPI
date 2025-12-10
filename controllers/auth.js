@@ -83,6 +83,10 @@ exports.login = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Password incorrect! Please input your valid password and try again."})
     }
 
+    if (userdata.status != "Active"){
+        return res.status(400).json({message: "failed", data: "Your account has been banned! Please contact customer support for more details"})
+    }
+
     const token = await encrypt(privateKey)
 
     await Users.findByIdAndUpdate({_id: userdata._id}, {$set: {token: token}}, { new: true })

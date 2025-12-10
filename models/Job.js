@@ -30,6 +30,12 @@ const JobSchema = new mongoose.Schema(
         status: {
             type: String,
             default: "Pending"
+        },
+        location: {
+            type: String
+        },
+        denyreason: {
+            type: String
         }
     },
     {
