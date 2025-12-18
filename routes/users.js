@@ -1,21 +1,21 @@
 const router = require("express").Router()
 const {createusers, editaboutme, getuserdata, editexperience, editeducation, editstatus, editfeatureddocuments, deletefeatureddocuments, getuserlist, editstatususer} = require("../controllers/users")
-const {protectemployeewithauth, protectsuperadmin, protectemployer} = require("../middleware/middleware")
+const {protectemployeewithauth, protectsuperadmin, protectemployer, protectall} = require("../middleware/middleware")
 const upload = require("../middleware/uploadfile")
 const uploadfile = upload.single("file")
 
 router
-    .get("/getuserdata", protectemployeewithauth, getuserdata)
+    .get("/getuserdata", protectall, getuserdata)
     .get("/getemployeedata", protectemployer, getuserdata)
     .get("/getuserdatasa", protectsuperadmin, getuserdata)
     .get("/getuserlist", protectsuperadmin, getuserlist)
-    .post("/editaboutme", protectemployeewithauth, editaboutme)
-    .post("/editexperience", protectemployeewithauth, editexperience)
-    .post("/editeducation", protectemployeewithauth, editeducation)
-    .post("/editstatus", protectemployeewithauth, editstatus)
+    .post("/editaboutme", protectall, editaboutme)
+    .post("/editexperience", protectall, editexperience)
+    .post("/editeducation", protectall, editeducation)
+    .post("/editstatus", protectall, editstatus)
     .post("/createusers", createusers)
     .post("/editstatususer", protectsuperadmin, editstatususer)
-    .post("/editfeatureddocuments", protectemployeewithauth, function (req, res, next){
+    .post("/editfeatureddocuments", protectall, function (req, res, next){
         uploadfile(req, res, function(err) {
             if (err){
                 return res.status(400).send({ message: "failed", data: err.message })
@@ -24,6 +24,6 @@ router
             next()
         })
     }, editfeatureddocuments)
-    .post("/deletefeatureddocuments", protectemployeewithauth, deletefeatureddocuments)
+    .post("/deletefeatureddocuments", protectall, deletefeatureddocuments)
 
 module.exports = router;
