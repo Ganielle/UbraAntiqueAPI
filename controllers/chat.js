@@ -103,3 +103,82 @@ exports.getconversations = async (req, res) => {
 
     return res.json({message: "success", data: conversations})
 }
+
+exports.getchats = async (req, res) => {
+  try {
+    const {id} = req.user
+    const { chatid } = req.query;
+
+    if (!chatid) {
+      return res
+        .status(400)
+        .json({ message: "failed", data: "Please select a valid chat" });
+    }
+
+    const conversationId = new mongoose.Types.ObjectId(chatid);
+
+    const chats = await Chats.aggregate([
+      {
+        $match: {
+          conversation: conversationId
+        }
+      },
+
+      // get sender user details
+      {
+        $lookup: {
+          from: "userdetails",
+          localField: "sender",
+          foreignField: "owner",
+          as: "senderDetails"
+        }
+      },
+      { $unwind: "$senderDetails" },
+
+      // compute isSender
+      {
+        $addFields: {
+          isSender: {
+            $eq: ["$sender", new mongoose.Types.ObjectId(id)]
+          }
+        }
+      },
+
+      {
+        $project: {
+          content: 1,
+          createdAt: 1,
+
+          isSender: 1,
+
+          senderFirstname: "$senderDetails.firstname",
+          senderLastname: "$senderDetails.lastname"
+        }
+      },
+
+      { $sort: { createdAt: 1 } } // chronological order
+    ]);
+
+    return res.status(200).json({
+      message: "success",
+      data: chats
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "failed", data: "Server error" });
+  }
+};
+
+exports.sendmessage = async (req, res) => {
+    const {id} = req.user
+    const {message, conversationid} = req.body
+
+    if (!message){
+        return res.status(400).json({message: "failed", data: "Please select a valid user or complete the form"})
+    }
+
+    await Chats.create({sender: new mongoose.Types.ObjectId(id), conversation: new mongoose.Types.ObjectId(conversationid), content: message})
+
+    return res.json({message: "success"})
+}
