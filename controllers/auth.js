@@ -2,6 +2,7 @@ const Users = require("../models/Users")
 const Staffusers = require("../models/Staffusers")
 const Userdetails = require("../models/Userdetails")
 const Verificationcode = require("../models/Verificationcode")
+const ForgotpwOTP = require("../models/Forgotpwotp")
 const fs = require('fs')
 const crypto = require('crypto')
 
@@ -220,4 +221,111 @@ exports.validateotp = async (req, res) => {
     return res.json({message: "success", data: {
         auth: user.auth
     }})
+}
+
+exports.generateforgotpwotp = async (req, res) => {
+    const {username} = req.body
+
+    if (!username){
+        return res.status(400).json({message: "failed", data: "Please enter username first!"})
+    }
+
+    const tempuser = await Users.findOne({username: username})
+
+    if (!tempuser){
+        return res.status(400).json({message: "failed", data: "No existing user!"})
+    }
+
+    const tempuserdetails = await Userdetails.findOne({owner: new mongoose.Types.ObjectId(tempuser._id)})
+
+    if (!tempuserdetails){
+        return res.status(400).json({message: "failed", data: "User doesn't have existing details! Please contact customer support for more details"})
+    }
+
+    const generatedOTP = generateNumericOTP()
+
+    await ForgotpwOTP.create({owner: new mongoose.Types.ObjectId(tempuser._id), status: "available", otp: generatedOTP})
+
+    const payload = {
+        service_id: process.env.EMAIL_JS_SERVICE_ID,
+        template_id: process.env.EMAIL_JS_FORGOT_PW_OTP,
+        user_id: process.env.EMAIL_JS_PUBLIC_KEY,
+        accessToken: process.env.EMAIL_JS_PRIVATE_KEY,
+        template_params: {
+            passcode: `${generatedOTP}`,
+            email: tempuserdetails.email
+        }
+    };
+
+    const emailresponse = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+        method: 'POST',
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+    })
+
+    const result = await emailresponse.text();
+
+    console.log(result)
+
+    if (result !== 'OK'){
+        return res.status(400).json({message: "failed", data: "Failed to send verification code. Please contact customer support"})
+    }
+
+    return res.json({message: "success"})
+}
+
+exports.validateforgotpwotp = async (req, res) => {
+    const {code, username} = req.body
+
+    if (!code){
+        return res.status(400).json({message: "failed", data: "Please enter OTP!"})
+    }
+    
+    if (!username){
+        return res.status(400).json({message: "failed", data: "Please enter username first!"})
+    }
+
+    const tempuser = await Users.findOne({username: username})
+
+    if (!tempuser){
+        return res.status(400).json({message: "failed", data: "No existing user!"})
+    }
+
+    const tempotp = await ForgotpwOTP.findOne({otp: code, owner: new mongoose.Types.ObjectId(tempuser._id), status: "available"})
+
+    if (!tempotp){
+        return res.status(400).json({message: "failed", data: "OTP is not valid or already been used!"})
+    }
+
+    await ForgotpwOTP.findOneAndUpdate({otp: code, owner: new mongoose.Types.ObjectId(tempuser._id)}, {status: "used"})
+
+    return res.json({message: "success"})
+}
+
+exports.changepassword = async (req, res) => {
+    const {newpw, code, username} = req.body
+
+    console.log(newpw, code, username)
+
+    if (!newpw || !code || !username){
+        return res.status(400).json({message: "failed", data: "Please complete the form first!"})
+    }
+
+    const tempuser = await Users.findOne({username: username})
+
+    if (!tempuser){
+        return res.status(400).json({message: "failed", data: "No existing user!"})
+    }
+
+    const tempotp = await ForgotpwOTP.findOne({otp: code, owner: new mongoose.Types.ObjectId(tempuser._id), status: "used"})
+
+    if (!tempotp){
+        return res.status(400).json({message: "failed", data: "OTP is not valid!"})
+    }
+
+    await Users.findOneAndUpdate({_id: new mongoose.Types.ObjectId(tempuser._id)}, {password: newpw})
+
+    return res.json({message: "success"})
 }
